@@ -1,0 +1,17 @@
+# デフォルト: LF に正規化
+* text=auto eol=lf
+
+# Windows バッチファイルは CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# バイナリファイル
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.jar binary
+
+# Shell スクリプトに実行権限を付与
+*.sh text eol=lf

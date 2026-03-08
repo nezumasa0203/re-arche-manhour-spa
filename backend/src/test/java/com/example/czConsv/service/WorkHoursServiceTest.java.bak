@@ -1,0 +1,628 @@
+package com.example.czConsv.service;
+
+import com.example.czConsv.dao.Tcz01HosyuKousuuDao;
+import com.example.czConsv.dto.request.WorkHoursCreateRequest;
+import com.example.czConsv.entity.Tcz01HosyuKousuu;
+import com.example.czConsv.exception.CzBusinessException;
+import com.example.czConsv.exception.OptimisticLockException;
+import com.example.czConsv.security.CzSecurityContext;
+import com.example.czConsv.security.model.CzPermissions;
+import com.example.czConsv.security.model.CzPrincipal;
+import com.example.czConsv.security.model.DataAuthority;
+import com.example.czConsv.security.model.EmploymentType;
+import com.example.czConsv.security.model.TabPermission;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+/**
+ * WorkHoursService の単体テスト。
+ *
+ * <p>Mockito で DAO をモック化し、各メソッドのビジネスロジックを検証する。
+ */
+@ExtendWith(MockitoExtension.class)
+@DisplayName("WorkHoursService: 工数管理サービス")
+class WorkHoursServiceTest {
+
+    @Mock
+    private Tcz01HosyuKousuuDao workHoursDao;
+
+    @Mock
+    private ValidationService validationService;
+
+    @InjectMocks
+    private WorkHoursService service;
+
+    private CzPrincipal principal;
+
+    @BeforeEach
+    void setUp() {
+        TabPermission tab010 = new TabPermission(
+                Map.of("bit0", true, "bit1", true, "bit2", false));
+        TabPermission tab011 = TabPermission.EMPTY;
+        TabPermission tab012 = TabPermission.EMPTY;
+        DataAuthority dataAuth = new DataAuthority("ZENSYA", "ZENSYA", "ZENSYA");
+        CzPermissions permissions = new CzPermissions(
+                false, tab010, tab011, tab012,
+                dataAuth, EmploymentType.OFFICIAL, 1, false);
+        principal = new CzPrincipal(
+                "U00001", "Test User", "test@example.com",
+                "ORG001", "Test Org", permissions);
+        CzSecurityContext.set(principal);
+    }
+
+    @AfterEach
+    void tearDown() {
+        CzSecurityContext.clear();
+    }
+
+    // ========================================================================
+    // ヘルパーメソッド
+    // ========================================================================
+
+    /**
+     * テスト用の工数エンティティを生成する。
+     */
+    private Tcz01HosyuKousuu createEntity(Long seqNo, String status,
+                                           String yearHalf) {
+        Tcz01HosyuKousuu entity = new Tcz01HosyuKousuu();
+        entity.seqNo = seqNo;
+        entity.skbtcd = "00";
+        entity.hssgytntEsqid = "U00001";
+        entity.hssgytntName = "Test User";
+        entity.yearHalf = yearHalf;
+        entity.sgyymd = LocalDate.of(2026, 1, 15);
+        entity.sysKbn = "1";
+        entity.causeSysKbn = "1";
+        entity.taisyoSknno = "S001";
+        entity.taisyoSubsysno = "SS001";
+        entity.taisyoAplid = "APL001";
+        entity.causeSysno = "S001";
+        entity.causeSubsysno = "SS001";
+        entity.causeAplid = "APL001";
+        entity.kenmei = "テスト件名";
+        entity.hsKategori = "01";
+        entity.hsSyubetu = "1";
+        entity.hsUnyouKubun = "1";
+        entity.tmrNo = "T001";
+        entity.sgyIraisyoNo = "1234567";
+        entity.sgyIraisyaEsqid = "U00002";
+        entity.sgyIraisyaName = "Requester";
+        entity.status = status;
+        entity.kousuu = new BigDecimal("210.00");
+        entity.initnt = "U00001";
+        entity.inidate = LocalDateTime.of(2026, 1, 10, 10, 0, 0);
+        entity.updtnt = "U00001";
+        entity.upddate = LocalDateTime.of(2026, 1, 15, 12, 0, 0);
+        entity.updpgid = "WorkHoursService";
+        entity.delflg = "0";
+        return entity;
+    }
+
+    /**
+     * 管理者権限の CzPrincipal を設定する（canManageReports=true）。
+     */
+    private void setManagerPrincipal() {
+        TabPermission tab010 = new TabPermission(
+                Map.of("bit0", true, "bit1", true, "bit2", false));
+        CzPermissions permissions = new CzPermissions(
+                false, tab010, TabPermission.EMPTY, TabPermission.EMPTY,
+                new DataAuthority("ZENSYA", "ZENSYA", "ZENSYA"),
+                EmploymentType.OFFICIAL, 1, false);
+        CzPrincipal mgr = new CzPrincipal(
+                "U00001", "Manager", "mgr@example.com",
+                "ORG001", "Test Org", permissions);
+        CzSecurityContext.set(mgr);
+    }
+
+    /**
+     * 報告のみの権限の CzPrincipal を設定する（canManageReports=false, canFullManage=false）。
+     */
+    private void setReporterOnlyPrincipal() {
+        TabPermission tab010 = new TabPermission(
+                Map.of("bit0", true, "bit1", false, "bit2", false));
+        CzPermissions permissions = new CzPermissions(
+                false, tab010, TabPermission.EMPTY, TabPermission.EMPTY,
+                new DataAuthority("ZENSYA", "ZENSYA", "ZENSYA"),
+                EmploymentType.OFFICIAL, 1, false);
+        CzPrincipal reporter = new CzPrincipal(
+                "U00001", "Reporter", "rep@example.com",
+                "ORG001", "Test Org", permissions);
+        CzSecurityContext.set(reporter);
+    }
+
+    // ========================================================================
+    // fetchByMonth テスト
+    // ========================================================================
+
+    @Nested
+    @DisplayName("fetchByMonth: 月次工数一覧取得")
+    class FetchByMonthTests {
+
+        @Test
+        @DisplayName("担当者・年月で絞り込んだレコードリストを返す")
+        void returnsFilteredRecords() {
+            Tcz01HosyuKousuu record1 = createEntity(1L, "0", "2026-01");
+            Tcz01HosyuKousuu record2 = createEntity(2L, "0", "2026-01");
+            when(workHoursDao.selectByTntAndPeriod("U00001", "2026-01"))
+                    .thenReturn(List.of(record1, record2));
+
+            List<Tcz01HosyuKousuu> result = service.fetchByMonth(
+                    "U00001", "2026-01");
+
+            assertAll(
+                    () -> assertEquals(2, result.size()),
+                    () -> assertEquals(1L, result.get(0).seqNo),
+                    () -> assertEquals(2L, result.get(1).seqNo)
+            );
+            verify(workHoursDao).selectByTntAndPeriod("U00001", "2026-01");
+        }
+
+        @Test
+        @DisplayName("該当データが無い場合は空リストを返す")
+        void returnsEmptyListWhenNoData() {
+            when(workHoursDao.selectByTntAndPeriod("U00001", "2026-02"))
+                    .thenReturn(Collections.emptyList());
+
+            List<Tcz01HosyuKousuu> result = service.fetchByMonth(
+                    "U00001", "2026-02");
+
+            assertEquals(0, result.size());
+        }
+    }
+
+    // ========================================================================
+    // create テスト
+    // ========================================================================
+
+    @Nested
+    @DisplayName("create: 工数レコード新規作成")
+    class CreateTests {
+
+        @Test
+        @DisplayName("下書きモード: yearMonthのみで空のSTATUS_0レコードを作成する")
+        void createDraftRecord() {
+            WorkHoursCreateRequest request = new WorkHoursCreateRequest(
+                    "2026-01",
+                    null, null, null, null, null, null,
+                    null, null, null);
+            when(workHoursDao.insert(any(Tcz01HosyuKousuu.class))).thenReturn(1);
+
+            Tcz01HosyuKousuu result = service.create(request);
+
+            assertAll(
+                    () -> assertEquals("0", result.status),
+                    () -> assertEquals("2026-01", result.yearHalf),
+                    () -> assertEquals("U00001", result.hssgytntEsqid),
+                    () -> assertEquals("Test User", result.hssgytntName),
+                    () -> assertEquals("00", result.skbtcd),
+                    () -> assertNull(result.sgyymd),
+                    () -> assertNull(result.kenmei),
+                    () -> assertNull(result.kousuu)
+            );
+            verify(workHoursDao).insert(any(Tcz01HosyuKousuu.class));
+            // ドラフトモードではバリデーション不要
+            verify(validationService, never()).validateWorkHoursInput(
+                    any(), any(), any(), any(), any(), any(),
+                    any(), any(), any(), any(), any(), eq(0));
+        }
+
+        @Test
+        @DisplayName("フルモード: 全フィールド指定でSTATUS_0レコードを作成する")
+        void createFullRecord() {
+            WorkHoursCreateRequest request = new WorkHoursCreateRequest(
+                    "2026-01",
+                    "2026-01-15",
+                    "SS001", "SS001", "01",
+                    "テスト件名", "3:30",
+                    "T001", "1234567", "依頼者");
+            when(workHoursDao.insert(any(Tcz01HosyuKousuu.class))).thenReturn(1);
+            when(validationService.validateWorkHoursInput(
+                    any(), any(), any(), any(), any(), any(),
+                    any(), any(), any(), any(), any(), eq(0)))
+                    .thenReturn(Collections.emptyList());
+            when(validationService.parseHoursToMinutes("3:30")).thenReturn(210);
+
+            Tcz01HosyuKousuu result = service.create(request);
+
+            assertAll(
+                    () -> assertEquals("0", result.status),
+                    () -> assertEquals("2026-01", result.yearHalf),
+                    () -> assertEquals("テスト件名", result.kenmei),
+                    () -> assertEquals(new BigDecimal("210.00"), result.kousuu),
+                    () -> assertEquals(LocalDate.of(2026, 1, 15), result.sgyymd)
+            );
+            verify(workHoursDao).insert(any(Tcz01HosyuKousuu.class));
+        }
+
+        @Test
+        @DisplayName("フルモード: バリデーションエラーがある場合はCzBusinessExceptionをスローする")
+        void createFullWithValidationError() {
+            WorkHoursCreateRequest request = new WorkHoursCreateRequest(
+                    "2026-01",
+                    "2026-01-15",
+                    "SS001", "SS001", "01",
+                    "", "3:30",
+                    null, null, null);
+            ValidationError error = new ValidationError(
+                    "CZ-126", "件名は必須です", "subject");
+            when(validationService.validateWorkHoursInput(
+                    any(), any(), any(), any(), any(), any(),
+                    any(), any(), any(), any(), any(), eq(0)))
+                    .thenReturn(List.of(error));
+
+            CzBusinessException ex = assertThrows(CzBusinessException.class,
+                    () -> service.create(request));
+
+            assertEquals("CZ-126", ex.getCode());
+            assertEquals("subject", ex.getField());
+        }
+    }
+
+    // ========================================================================
+    // updateField テスト
+    // ========================================================================
+
+    @Nested
+    @DisplayName("updateField: 単一フィールド更新")
+    class UpdateFieldTests {
+
+        @Test
+        @DisplayName("正常系: フィールドを更新して結果を返す")
+        void updateFieldSuccessfully() {
+            Tcz01HosyuKousuu existing = createEntity(1L, "0", "2026-01");
+            existing.upddate = LocalDateTime.of(2026, 1, 15, 12, 0, 0);
+            when(workHoursDao.selectById(1L, "00"))
+                    .thenReturn(Optional.of(existing));
+            when(validationService.validateFieldUpdate(
+                    eq("subject"), eq("新しい件名"), eq(0), eq("1")))
+                    .thenReturn(Collections.emptyList());
+            when(workHoursDao.update(any(Tcz01HosyuKousuu.class))).thenReturn(1);
+
+            Tcz01HosyuKousuu result = service.updateField(
+                    1L, "00", "subject", "新しい件名",
+                    LocalDateTime.of(2026, 1, 15, 12, 0, 0));
+
+            assertEquals("新しい件名", result.kenmei);
+            verify(workHoursDao).update(any(Tcz01HosyuKousuu.class));
+        }
+
+        @Test
+        @DisplayName("楽観ロック: updatedAtが一致しない場合はOptimisticLockExceptionをスローする")
+        void optimisticLockFailure() {
+            Tcz01HosyuKousuu existing = createEntity(1L, "0", "2026-01");
+            existing.upddate = LocalDateTime.of(2026, 1, 15, 12, 0, 0);
+            when(workHoursDao.selectById(1L, "00"))
+                    .thenReturn(Optional.of(existing));
+
+            assertThrows(OptimisticLockException.class,
+                    () -> service.updateField(
+                            1L, "00", "subject", "新しい件名",
+                            LocalDateTime.of(2026, 1, 15, 11, 0, 0)));
+
+            verify(workHoursDao, never()).update(any());
+        }
+
+        @Test
+        @DisplayName("存在しないレコードの場合はCzBusinessExceptionをスローする")
+        void recordNotFound() {
+            when(workHoursDao.selectById(999L, "00"))
+                    .thenReturn(Optional.empty());
+
+            CzBusinessException ex = assertThrows(CzBusinessException.class,
+                    () -> service.updateField(
+                            999L, "00", "subject", "値",
+                            LocalDateTime.now()));
+
+            assertEquals("CZ-104", ex.getCode());
+        }
+
+        @Test
+        @DisplayName("バリデーションエラーの場合はCzBusinessExceptionをスローする")
+        void validationErrorOnFieldUpdate() {
+            Tcz01HosyuKousuu existing = createEntity(1L, "0", "2026-01");
+            existing.upddate = LocalDateTime.of(2026, 1, 15, 12, 0, 0);
+            when(workHoursDao.selectById(1L, "00"))
+                    .thenReturn(Optional.of(existing));
+            ValidationError error = new ValidationError(
+                    "CZ-126", "件名は必須です", "subject");
+            when(validationService.validateFieldUpdate(
+                    eq("subject"), eq(""), eq(0), eq("1")))
+                    .thenReturn(List.of(error));
+
+            CzBusinessException ex = assertThrows(CzBusinessException.class,
+                    () -> service.updateField(
+                            1L, "00", "subject", "",
+                            LocalDateTime.of(2026, 1, 15, 12, 0, 0)));
+
+            assertEquals("CZ-126", ex.getCode());
+        }
+
+        @Test
+        @DisplayName("hoursフィールド更新: kousuuが分数(BigDecimal)で保存される")
+        void updateHoursField() {
+            Tcz01HosyuKousuu existing = createEntity(1L, "0", "2026-01");
+            existing.upddate = LocalDateTime.of(2026, 1, 15, 12, 0, 0);
+            when(workHoursDao.selectById(1L, "00"))
+                    .thenReturn(Optional.of(existing));
+            when(validationService.validateFieldUpdate(
+                    eq("hours"), eq("4:00"), eq(0), eq("1")))
+                    .thenReturn(Collections.emptyList());
+            when(validationService.parseHoursToMinutes("4:00")).thenReturn(240);
+            when(workHoursDao.update(any(Tcz01HosyuKousuu.class))).thenReturn(1);
+
+            Tcz01HosyuKousuu result = service.updateField(
+                    1L, "00", "hours", "4:00",
+                    LocalDateTime.of(2026, 1, 15, 12, 0, 0));
+
+            assertEquals(new BigDecimal("240.00"), result.kousuu);
+        }
+    }
+
+    // ========================================================================
+    // delete テスト
+    // ========================================================================
+
+    @Nested
+    @DisplayName("delete: 一括削除")
+    class DeleteTests {
+
+        @Test
+        @DisplayName("全てSTATUS_0の場合は論理削除に成功する")
+        void deleteAllDraftRecords() {
+            Tcz01HosyuKousuu r1 = createEntity(1L, "0", "2026-01");
+            Tcz01HosyuKousuu r2 = createEntity(2L, "0", "2026-01");
+            when(workHoursDao.selectById(1L, "00"))
+                    .thenReturn(Optional.of(r1));
+            when(workHoursDao.selectById(2L, "00"))
+                    .thenReturn(Optional.of(r2));
+            when(workHoursDao.logicalDelete(any())).thenReturn(1);
+
+            int count = service.delete(List.of(1L, 2L), "00");
+
+            assertEquals(2, count);
+            verify(workHoursDao, times(2)).logicalDelete(any());
+        }
+
+        @Test
+        @DisplayName("STATUS_0以外のレコードが含まれる場合はCZ-106エラー")
+        void deleteWithNonDraftRecord() {
+            Tcz01HosyuKousuu r1 = createEntity(1L, "0", "2026-01");
+            Tcz01HosyuKousuu r2 = createEntity(2L, "1", "2026-01");
+            when(workHoursDao.selectById(1L, "00"))
+                    .thenReturn(Optional.of(r1));
+            when(workHoursDao.selectById(2L, "00"))
+                    .thenReturn(Optional.of(r2));
+
+            CzBusinessException ex = assertThrows(CzBusinessException.class,
+                    () -> service.delete(List.of(1L, 2L), "00"));
+
+            assertEquals("CZ-106", ex.getCode());
+            verify(workHoursDao, never()).logicalDelete(any());
+        }
+    }
+
+    // ========================================================================
+    // copy テスト
+    // ========================================================================
+
+    @Nested
+    @DisplayName("copy: レコード複製")
+    class CopyTests {
+
+        @Test
+        @DisplayName("元レコードをコピーしてSTATUS_0で新規作成する")
+        void copyRecordsWithStatusReset() {
+            Tcz01HosyuKousuu source = createEntity(1L, "1", "2026-01");
+            when(workHoursDao.selectById(1L, "00"))
+                    .thenReturn(Optional.of(source));
+            when(workHoursDao.insert(any(Tcz01HosyuKousuu.class))).thenReturn(1);
+
+            List<Tcz01HosyuKousuu> result = service.copy(
+                    List.of(1L), "00");
+
+            assertEquals(1, result.size());
+            ArgumentCaptor<Tcz01HosyuKousuu> captor =
+                    ArgumentCaptor.forClass(Tcz01HosyuKousuu.class);
+            verify(workHoursDao).insert(captor.capture());
+            Tcz01HosyuKousuu copied = captor.getValue();
+            assertAll(
+                    () -> assertEquals("0", copied.status),
+                    () -> assertNull(copied.seqNo,
+                            "新規レコードのseqNoはnull（DB自動採番）"),
+                    () -> assertEquals("テスト件名", copied.kenmei),
+                    () -> assertEquals(source.kousuu, copied.kousuu)
+            );
+        }
+    }
+
+    // ========================================================================
+    // transferNextMonth テスト
+    // ========================================================================
+
+    @Nested
+    @DisplayName("transferNextMonth: 翌月繰越")
+    class TransferNextMonthTests {
+
+        @Test
+        @DisplayName("指定月へコピーしてyearHalfを変更する")
+        void transferToTargetMonth() {
+            Tcz01HosyuKousuu source = createEntity(1L, "0", "2026-01");
+            when(workHoursDao.selectById(1L, "00"))
+                    .thenReturn(Optional.of(source));
+            when(workHoursDao.insert(any(Tcz01HosyuKousuu.class))).thenReturn(1);
+
+            List<Tcz01HosyuKousuu> result = service.transferNextMonth(
+                    List.of(1L), "00", List.of("2026-02"));
+
+            assertEquals(1, result.size());
+            ArgumentCaptor<Tcz01HosyuKousuu> captor =
+                    ArgumentCaptor.forClass(Tcz01HosyuKousuu.class);
+            verify(workHoursDao).insert(captor.capture());
+            Tcz01HosyuKousuu transferred = captor.getValue();
+            assertAll(
+                    () -> assertEquals("0", transferred.status),
+                    () -> assertEquals("2026-02", transferred.yearHalf),
+                    () -> assertNull(transferred.seqNo),
+                    () -> assertNull(transferred.sgyymd,
+                            "作業日は繰越時にクリアされる")
+            );
+        }
+
+        @Test
+        @DisplayName("複数の宛先月へ繰越す場合はそれぞれに対してレコードが作られる")
+        void transferToMultipleMonths() {
+            Tcz01HosyuKousuu source = createEntity(1L, "0", "2026-01");
+            when(workHoursDao.selectById(1L, "00"))
+                    .thenReturn(Optional.of(source));
+            when(workHoursDao.insert(any(Tcz01HosyuKousuu.class))).thenReturn(1);
+
+            List<Tcz01HosyuKousuu> result = service.transferNextMonth(
+                    List.of(1L), "00",
+                    List.of("2026-02", "2026-03"));
+
+            assertEquals(2, result.size());
+            verify(workHoursDao, times(2)).insert(any(Tcz01HosyuKousuu.class));
+        }
+    }
+
+    // ========================================================================
+    // batchConfirm テスト
+    // ========================================================================
+
+    @Nested
+    @DisplayName("batchConfirm: 一括確定")
+    class BatchConfirmTests {
+
+        @Test
+        @DisplayName("全STATUS_0レコードのバリデーション通過後STATUS_0→1に更新する")
+        void confirmAllValid() {
+            Tcz01HosyuKousuu r1 = createEntity(1L, "0", "2026-01");
+            Tcz01HosyuKousuu r2 = createEntity(2L, "0", "2026-01");
+            when(workHoursDao.selectByTntPeriodAndStatus("U00001", "2026-01", "0"))
+                    .thenReturn(List.of(r1, r2));
+            when(validationService.validateWorkHoursInput(
+                    any(), any(), any(), any(), any(), any(),
+                    any(), any(), any(), any(), any(), eq(0)))
+                    .thenReturn(Collections.emptyList());
+            when(workHoursDao.update(any(Tcz01HosyuKousuu.class))).thenReturn(1);
+
+            int count = service.batchConfirm("2026-01");
+
+            assertEquals(2, count);
+            verify(workHoursDao, times(2)).update(any(Tcz01HosyuKousuu.class));
+        }
+
+        @Test
+        @DisplayName("バリデーションエラーがあるレコードで停止しCzBusinessExceptionをスローする")
+        void confirmStopsAtFirstError() {
+            Tcz01HosyuKousuu r1 = createEntity(1L, "0", "2026-01");
+            r1.kenmei = "";
+            when(workHoursDao.selectByTntPeriodAndStatus("U00001", "2026-01", "0"))
+                    .thenReturn(List.of(r1));
+            ValidationError error = new ValidationError(
+                    "CZ-126", "件名は必須です", "subject");
+            when(validationService.validateWorkHoursInput(
+                    any(), any(), any(), any(), any(), any(),
+                    any(), any(), any(), any(), any(), eq(0)))
+                    .thenReturn(List.of(error));
+
+            CzBusinessException ex = assertThrows(CzBusinessException.class,
+                    () -> service.batchConfirm("2026-01"));
+
+            assertAll(
+                    () -> assertEquals("CZ-126", ex.getCode()),
+                    () -> assertEquals(1L, ex.getRecordId()),
+                    () -> assertEquals("subject", ex.getField())
+            );
+            verify(workHoursDao, never()).update(any());
+        }
+
+        @Test
+        @DisplayName("STATUS_0レコードが無い場合は0を返す")
+        void confirmNoRecords() {
+            when(workHoursDao.selectByTntPeriodAndStatus("U00001", "2026-01", "0"))
+                    .thenReturn(Collections.emptyList());
+
+            int count = service.batchConfirm("2026-01");
+
+            assertEquals(0, count);
+        }
+    }
+
+    // ========================================================================
+    // batchRevert テスト
+    // ========================================================================
+
+    @Nested
+    @DisplayName("batchRevert: 一括差戻")
+    class BatchRevertTests {
+
+        @Test
+        @DisplayName("管理者権限でSTATUS_1→0に差戻する")
+        void revertWithManagerPermission() {
+            setManagerPrincipal();
+            Tcz01HosyuKousuu r1 = createEntity(1L, "1", "2026-01");
+            Tcz01HosyuKousuu r2 = createEntity(2L, "1", "2026-01");
+            when(workHoursDao.selectByTntPeriodAndStatus("U00001", "2026-01", "1"))
+                    .thenReturn(List.of(r1, r2));
+            when(workHoursDao.update(any(Tcz01HosyuKousuu.class))).thenReturn(1);
+
+            int count = service.batchRevert("2026-01");
+
+            assertEquals(2, count);
+            verify(workHoursDao, times(2)).update(any(Tcz01HosyuKousuu.class));
+        }
+
+        @Test
+        @DisplayName("権限不足の場合はCZ-106をスローする")
+        void revertWithoutPermission() {
+            setReporterOnlyPrincipal();
+
+            CzBusinessException ex = assertThrows(CzBusinessException.class,
+                    () -> service.batchRevert("2026-01"));
+
+            assertEquals("CZ-106", ex.getCode());
+            verify(workHoursDao, never()).update(any());
+        }
+
+        @Test
+        @DisplayName("STATUS_1レコードが無い場合は0を返す")
+        void revertNoRecords() {
+            setManagerPrincipal();
+            when(workHoursDao.selectByTntPeriodAndStatus("U00001", "2026-01", "1"))
+                    .thenReturn(Collections.emptyList());
+
+            int count = service.batchRevert("2026-01");
+
+            assertEquals(0, count);
+        }
+    }
+}

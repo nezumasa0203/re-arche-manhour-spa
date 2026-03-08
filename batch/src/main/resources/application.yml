@@ -1,0 +1,49 @@
+spring:
+  application:
+    name: cz-migration-batch
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/cz_migration_dev
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+
+  batch:
+    jdbc:
+      initialize-schema: always
+    job:
+      enabled: false
+
+doma:
+  dialect: postgres
+  sql-file-repository: greedy-cache
+
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+---
+spring:
+  config:
+    activate:
+      on-profile: test
+
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+
+doma:
+  dialect: h2
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
