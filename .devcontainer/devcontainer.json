@@ -1,8 +1,14 @@
 {
   "name": "CZ Migration Dev",
-  "dockerComposeFile": ["../docker-compose.yml"],
-  "service": "workspace",
-  "workspaceFolder": "/workspace/01_project",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
 
   "customizations": {
     "vscode": {
@@ -32,7 +38,13 @@
     }
   },
 
-  "postCreateCommand": "/usr/local/bin/entrypoint.sh true",
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
 
-  "remoteUser": "vscode"
+  "remoteUser": "vscode",
+
+  "secrets": {
+    "ANTHROPIC_API_KEY": {
+      "description": "Anthropic API key for Claude Code CLI"
+    }
+  }
 }

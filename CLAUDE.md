@@ -12,7 +12,8 @@ Nuxt.js 3 SPA + Spring Boot REST API + PostgreSQL にマイグレーションす
 
 ## 移行元ソースコード
 
-`D:\PROJECT02\migration_source\migration_soource_irpmng_czConsv`
+ローカル環境: `D:\PROJECT02\migration_source\migration_soource_irpmng_czConsv`
+※ Codespaces 環境では移行元ソースは含まれません。必要に応じて参照してください。
 
 ## 分析ドキュメント
 
