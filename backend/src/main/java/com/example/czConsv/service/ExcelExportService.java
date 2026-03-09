@@ -67,7 +67,9 @@ public class ExcelExportService {
             BigDecimal totalHours = BigDecimal.ZERO;
             int rowNum = 1;
             for (WorkHoursListResponse.WorkHoursRecord r : records) {
-                if (rowNum > MAX_ROWS) break;
+                if (rowNum > MAX_ROWS) {
+                    break;
+                }
                 Row row = sheet.createRow(rowNum++);
                 setCell(row, 0, r.workDate());
                 setCell(row, 1, r.targetSubsystem() != null ? r.targetSubsystem().subsystemName() : "");
@@ -110,7 +112,9 @@ public class ExcelExportService {
             BigDecimal totalHours = BigDecimal.ZERO;
             int rowNum = 1;
             for (WorkStatusListResponse.WorkStatusRecord r : records) {
-                if (rowNum > MAX_ROWS) break;
+                if (rowNum > MAX_ROWS) {
+                    break;
+                }
                 Row row = sheet.createRow(rowNum++);
                 setCell(row, 0, r.staffId());
                 setCell(row, 1, r.staffName());
@@ -153,7 +157,9 @@ public class ExcelExportService {
 
             int rowNum = 1;
             for (HalfTrendsResponse.HalfTrendsRow r : response.rows()) {
-                if (rowNum > MAX_ROWS) break;
+                if (rowNum > MAX_ROWS) {
+                    break;
+                }
                 Row row = sheet.createRow(rowNum++);
                 setCell(row, 0, r.key());
                 setCell(row, 1, r.label());
@@ -238,7 +244,9 @@ public class ExcelExportService {
             BigDecimal grandTotal = BigDecimal.ZERO;
             int rowNum = 1;
             for (MonthlyBreakdownResponse.BreakdownRow r : response.rows()) {
-                if (rowNum > MAX_ROWS) break;
+                if (rowNum > MAX_ROWS) {
+                    break;
+                }
                 Row row = sheet.createRow(rowNum++);
                 setCell(row, 0, r.key());
                 setCell(row, 1, r.label());
@@ -308,7 +316,9 @@ public class ExcelExportService {
     }
 
     private BigDecimal parseHours(String hours) {
-        if (hours == null || hours.isBlank()) return BigDecimal.ZERO;
+        if (hours == null || hours.isBlank()) {
+            return BigDecimal.ZERO;
+        }
         try {
             return new BigDecimal(hours);
         } catch (NumberFormatException e) {

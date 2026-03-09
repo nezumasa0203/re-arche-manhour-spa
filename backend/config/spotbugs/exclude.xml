@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter>
+    <!-- Doma2 Entity は public フィールドを使う設計のため除外 -->
+    <Match>
+        <Package name="com.example.czConsv.entity"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+
+    <!-- DTO (record) の不変性は Java record で保証されるため除外 -->
+    <Match>
+        <Package name="~com\.example\.czConsv\.dto\..*"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+
+    <!-- Security 関連: Spring 管理の Bean / record -->
+    <Match>
+        <Package name="~com\.example\.czConsv\.security\..*"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+
+    <!-- Exception クラス: params 配列の公開は意図的 -->
+    <Match>
+        <Package name="com.example.czConsv.exception"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+
+    <!-- Spring 管理 Bean のコンストラクタ例外は Spring が処理するため除外 -->
+    <Match>
+        <Bug pattern="CT_CONSTRUCTOR_THROW"/>
+    </Match>
+
+    <!-- Service/Controller/Config 層: Spring DI / record 構造のため除外 -->
+    <Match>
+        <Package name="~com\.example\.czConsv\.(service|controller|config).*"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+
+    <!-- GlobalExceptionHandler: Spring の MethodArgumentNotValidException の
+         getBindingResult() は non-null が保証されている -->
+    <Match>
+        <Class name="com.example.czConsv.config.GlobalExceptionHandler"/>
+        <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
+    </Match>
+
+    <!-- DLS_DEAD_LOCAL_STORE: STYLE レベルの警告、実害なし -->
+    <Match>
+        <Bug pattern="DLS_DEAD_LOCAL_STORE"/>
+    </Match>
+</FindBugsFilter>

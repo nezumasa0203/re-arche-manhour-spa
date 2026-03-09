@@ -7,14 +7,10 @@ import com.example.czConsv.dto.request.WorkHoursCopyRequest;
 import com.example.czConsv.dto.request.WorkHoursTransferRequest;
 import com.example.czConsv.dto.request.WorkHoursUpdateRequest;
 import com.example.czConsv.entity.Tcz01HosyuKousuu;
-import com.example.czConsv.security.CzSecurityContext;
-import com.example.czConsv.security.model.CzPrincipal;
 import com.example.czConsv.service.ExcelExportService;
 import com.example.czConsv.service.WorkHoursService;
+import com.example.czConsv.util.ControllerSupport;
 import jakarta.validation.Valid;
-import org.springframework.http.ContentDisposition;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -75,32 +71,28 @@ public class WorkHoursController {
     public ResponseEntity<Tcz01HosyuKousuu> update(
             @PathVariable Long id,
             @Valid @RequestBody WorkHoursUpdateRequest request) {
-        String skbtcd = resolveSkbtcd();
         Tcz01HosyuKousuu updated = workHoursService.updateField(
-                id, skbtcd, request.field(), request.value(), request.updatedAt());
+                id, ControllerSupport.resolveSkbtcd(), request.field(), request.value(), request.updatedAt());
         return ResponseEntity.ok(updated);
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Map<String, Integer>> delete(@PathVariable Long id) {
-        String skbtcd = resolveSkbtcd();
-        int count = workHoursService.delete(List.of(id), skbtcd);
+        int count = workHoursService.delete(List.of(id), ControllerSupport.resolveSkbtcd());
         return ResponseEntity.ok(Map.of("deletedCount", count));
     }
 
     @PostMapping("/copy")
     public ResponseEntity<List<Tcz01HosyuKousuu>> copy(
             @Valid @RequestBody WorkHoursCopyRequest request) {
-        String skbtcd = resolveSkbtcd();
-        return ResponseEntity.ok(workHoursService.copy(request.ids(), skbtcd));
+        return ResponseEntity.ok(workHoursService.copy(request.ids(), ControllerSupport.resolveSkbtcd()));
     }
 
     @PostMapping("/transfer")
     public ResponseEntity<List<Tcz01HosyuKousuu>> transfer(
             @Valid @RequestBody WorkHoursTransferRequest request) {
-        String skbtcd = resolveSkbtcd();
         return ResponseEntity.ok(
-                workHoursService.transferNextMonth(request.ids(), skbtcd, request.targetMonths()));
+                workHoursService.transferNextMonth(request.ids(), ControllerSupport.resolveSkbtcd(), request.targetMonths()));
     }
 
     @PostMapping("/batch-confirm")
@@ -125,22 +117,7 @@ public class WorkHoursController {
         byte[] bytes = excelExportService.exportWorkHoursDetail(List.of(), yearMonth);
         String filename = ExcelExportService.buildFileName("work_hours", yearMonth);
         return ResponseEntity.ok()
-                .headers(buildExcelHeaders(filename))
+                .headers(ControllerSupport.excelHeaders(filename))
                 .body(bytes);
-    }
-
-    /** CzSecurityContext から skbtcd を解決する（jinjiMode=01, 通常=00）。 */
-    private String resolveSkbtcd() {
-        CzPrincipal principal = CzSecurityContext.require();
-        return principal.permissions().jinjiMode() ? "01" : "00";
-    }
-
-    private HttpHeaders buildExcelHeaders(String filename) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.parseMediaType(
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
-        headers.setContentDisposition(
-                ContentDisposition.attachment().filename(filename).build());
-        return headers;
     }
 }

@@ -5,15 +5,11 @@ import com.example.czConsv.dto.request.MonthlyControlRequest;
 import com.example.czConsv.dto.request.RevertRequest;
 import com.example.czConsv.entity.Mcz04Ctrl;
 import com.example.czConsv.entity.Tcz01HosyuKousuu;
-import com.example.czConsv.security.CzSecurityContext;
-import com.example.czConsv.security.model.CzPrincipal;
 import com.example.czConsv.service.ExcelExportService;
 import com.example.czConsv.service.MonthlyControlService;
 import com.example.czConsv.service.WorkStatusService;
+import com.example.czConsv.util.ControllerSupport;
 import jakarta.validation.Valid;
-import org.springframework.http.ContentDisposition;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -73,25 +69,22 @@ public class WorkStatusController {
             @PathVariable Long id,
             @RequestParam String hours,
             @RequestParam String updatedAt) {
-        String skbtcd = resolveSkbtcd();
         LocalDateTime updatedAtDt = LocalDateTime.parse(updatedAt);
         return ResponseEntity.ok(
-                workStatusService.updateHours(id, skbtcd, hours, updatedAtDt));
+                workStatusService.updateHours(id, ControllerSupport.resolveSkbtcd(), hours, updatedAtDt));
     }
 
     @PostMapping("/approve")
     public ResponseEntity<Map<String, Integer>> approve(
             @Valid @RequestBody ApproveRequest request) {
-        String skbtcd = resolveSkbtcd();
-        int count = workStatusService.approve(request.ids(), skbtcd);
+        int count = workStatusService.approve(request.ids(), ControllerSupport.resolveSkbtcd());
         return ResponseEntity.ok(Map.of("approvedCount", count));
     }
 
     @PostMapping("/revert")
     public ResponseEntity<Map<String, Integer>> revert(
             @Valid @RequestBody RevertRequest request) {
-        String skbtcd = resolveSkbtcd();
-        int count = workStatusService.revert(request.ids(), skbtcd);
+        int count = workStatusService.revert(request.ids(), ControllerSupport.resolveSkbtcd());
         return ResponseEntity.ok(Map.of("revertedCount", count));
     }
 
@@ -129,21 +122,7 @@ public class WorkStatusController {
         byte[] bytes = excelExportService.exportWorkStatus(List.of(), yearMonth);
         String filename = ExcelExportService.buildFileName("work_status", yearMonth);
         return ResponseEntity.ok()
-                .headers(buildExcelHeaders(filename))
+                .headers(ControllerSupport.excelHeaders(filename))
                 .body(bytes);
-    }
-
-    private String resolveSkbtcd() {
-        CzPrincipal principal = CzSecurityContext.require();
-        return principal.permissions().jinjiMode() ? "01" : "00";
-    }
-
-    private HttpHeaders buildExcelHeaders(String filename) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.parseMediaType(
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
-        headers.setContentDisposition(
-                ContentDisposition.attachment().filename(filename).build());
-        return headers;
     }
 }

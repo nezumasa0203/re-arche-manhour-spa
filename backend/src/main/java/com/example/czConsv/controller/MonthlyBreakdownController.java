@@ -3,9 +3,7 @@ package com.example.czConsv.controller;
 import com.example.czConsv.dto.response.MonthlyBreakdownResponse;
 import com.example.czConsv.service.ExcelExportService;
 import com.example.czConsv.service.MonthlyBreakdownService;
-import org.springframework.http.ContentDisposition;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
+import com.example.czConsv.util.ControllerSupport;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -102,11 +100,8 @@ public class MonthlyBreakdownController {
         };
 
         String filename = ExcelExportService.buildFileName("monthly_breakdown_" + type, yearMonth);
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.parseMediaType(
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
-        headers.setContentDisposition(
-                ContentDisposition.attachment().filename(filename).build());
-        return ResponseEntity.ok().headers(headers).body(bytes);
+        return ResponseEntity.ok()
+                .headers(ControllerSupport.excelHeaders(filename))
+                .body(bytes);
     }
 }

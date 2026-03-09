@@ -3,6 +3,8 @@ plugins {
     id 'org.springframework.boot' version '3.4.1'
     id 'io.spring.dependency-management' version '1.1.7'
     id 'checkstyle'
+    id 'com.github.spotbugs' version '6.0.26'
+    id 'jacoco'
 }
 
 group = 'com.example'
@@ -45,6 +47,9 @@ dependencies {
     // Apache POI (Excel .xlsx 出力)
     implementation 'org.apache.poi:poi-ooxml:5.3.0'
 
+    // SpringDoc OpenAPI (Swagger UI)
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.7.0'
+
     // Test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
@@ -66,9 +71,35 @@ tasks.named('test') {
     useJUnitPlatform()
     environment 'DOCKER_API_VERSION', '1.44'
     systemProperty 'api.version', '1.44'
+    finalizedBy jacocoTestReport
 }
 
 checkstyle {
     toolVersion = '10.21.1'
     configFile = file("${rootDir}/config/checkstyle/checkstyle.xml")
+}
+
+spotbugs {
+    effort.set(com.github.spotbugs.snom.Effort.valueOf('MAX'))
+    reportLevel.set(com.github.spotbugs.snom.Confidence.valueOf('MEDIUM'))
+    excludeFilter.set(file("${rootDir}/config/spotbugs/exclude.xml"))
+}
+
+tasks.withType(com.github.spotbugs.snom.SpotBugsTask).configureEach {
+    reports {
+        html.required = true
+        xml.required = true
+    }
+}
+
+jacoco {
+    toolVersion = '0.8.12'
+}
+
+jacocoTestReport {
+    dependsOn test
+    reports {
+        html.required = true
+        xml.required = true
+    }
 }
