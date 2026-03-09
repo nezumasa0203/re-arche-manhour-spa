@@ -7,7 +7,7 @@ app.use(cors())
 app.use(express.json())
 
 const PORT = process.env.PORT || 8180
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-mock-secret'
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-mock-secret-key-that-is-at-least-256-bits-long'
 const JWT_ISSUER = process.env.JWT_ISSUER || 'https://mock-okta.example.com'
 
 // ============================================

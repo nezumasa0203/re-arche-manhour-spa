@@ -4,6 +4,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -20,6 +21,7 @@ import java.time.ZoneId;
  *
  * <p>タイムゾーンは {@code Asia/Tokyo} 固定。
  * テスト時は {@link Clock#fixed} を注入して時刻を制御可能。
+ * {@code app.service-time.enabled=false} でチェックを無効化可能（dev/E2E 用）。
  */
 @Component
 public class ServiceTimeFilter extends OncePerRequestFilter {
@@ -29,9 +31,12 @@ public class ServiceTimeFilter extends OncePerRequestFilter {
     private static final LocalTime SERVICE_END = LocalTime.of(23, 30);
 
     private final Clock clock;
+    private final boolean enabled;
 
-    public ServiceTimeFilter(Clock clock) {
+    public ServiceTimeFilter(Clock clock,
+                             @Value("${app.service-time.enabled:true}") boolean enabled) {
         this.clock = clock;
+        this.enabled = enabled;
     }
 
     @Override
@@ -39,6 +44,12 @@ public class ServiceTimeFilter extends OncePerRequestFilter {
                                      HttpServletResponse response,
                                      FilterChain filterChain)
             throws ServletException, IOException {
+
+        // チェック無効化時はそのまま通過
+        if (!enabled) {
+            filterChain.doFilter(request, response);
+            return;
+        }
 
         // GET は時間外でも許可
         if ("GET".equalsIgnoreCase(request.getMethod())) {

@@ -25,9 +25,12 @@ import org.springframework.context.annotation.FilterType;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -76,7 +79,7 @@ class WorkHoursControllerTest {
     void setUpSecurityContext() {
         CzPermissions permissions = new CzPermissions(
                 false,                          // jinjiMode = false → skbtcd="00"
-                TabPermission.EMPTY,
+                new TabPermission(Map.of("bit0", true, "bit1", true, "bit2", false)),  // tab010: canReport=true, canManage=true
                 TabPermission.EMPTY,
                 TabPermission.EMPTY,
                 new DataAuthority(null, null, null),
@@ -94,8 +97,21 @@ class WorkHoursControllerTest {
         CzSecurityContext.clear();
     }
 
+    /** テスト用エンティティを作成するヘルパー。 */
+    private Tcz01HosyuKousuu createTestEntity(Long seqNo) {
+        Tcz01HosyuKousuu entity = new Tcz01HosyuKousuu();
+        entity.seqNo = seqNo;
+        entity.yearHalf = "2025-02";
+        entity.sgyymd = LocalDate.of(2025, 2, 1);
+        entity.kenmei = "テスト件名";
+        entity.status = "0";
+        entity.kousuu = BigDecimal.valueOf(120); // 120分 = 2:00
+        entity.upddate = LocalDateTime.of(2025, 2, 1, 10, 0, 0);
+        return entity;
+    }
+
     // ─────────────────────────────────────────────────────────────────────
-    // GET /api/work-hours
+    // GET /api/work-hours → WorkHoursListResponse
     // ─────────────────────────────────────────────────────────────────────
 
     @Nested
@@ -103,8 +119,7 @@ class WorkHoursControllerTest {
 
         @Test
         void returnsRecordsForGivenMonth() throws Exception {
-            Tcz01HosyuKousuu record = new Tcz01HosyuKousuu();
-            record.seqNo = 1L;
+            Tcz01HosyuKousuu record = createTestEntity(1L);
             when(workHoursService.fetchByMonth("U001", "2025-02"))
                     .thenReturn(List.of(record));
 
@@ -112,7 +127,17 @@ class WorkHoursControllerTest {
                             .param("staffId", "U001")
                             .param("yearMonth", "2025-02"))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$[0].seqNo").value(1));
+                    .andExpect(jsonPath("$.records[0].id").value(1))
+                    .andExpect(jsonPath("$.records[0].yearMonth").value("2025-02"))
+                    .andExpect(jsonPath("$.records[0].workDate").value("2025-02-01"))
+                    .andExpect(jsonPath("$.records[0].subject").value("テスト件名"))
+                    .andExpect(jsonPath("$.records[0].hours").value("2:00"))
+                    .andExpect(jsonPath("$.records[0].status").value("0"))
+                    .andExpect(jsonPath("$.summary.monthlyTotal").value(120))
+                    .andExpect(jsonPath("$.permissions.canCreate").value(true))
+                    .andExpect(jsonPath("$.permissions.canRevert").value(true))
+                    .andExpect(jsonPath("$.monthControl.yearMonth").value("2025-02"))
+                    .andExpect(jsonPath("$.monthControl.status").value("OPEN"));
         }
 
         @Test
@@ -124,13 +149,16 @@ class WorkHoursControllerTest {
                             .param("staffId", "U001")
                             .param("yearMonth", "2025-02"))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$").isArray())
-                    .andExpect(jsonPath("$").isEmpty());
+                    .andExpect(jsonPath("$.records").isArray())
+                    .andExpect(jsonPath("$.records").isEmpty())
+                    .andExpect(jsonPath("$.summary").exists())
+                    .andExpect(jsonPath("$.permissions").exists())
+                    .andExpect(jsonPath("$.monthControl").exists());
         }
     }
 
     // ─────────────────────────────────────────────────────────────────────
-    // POST /api/work-hours
+    // POST /api/work-hours → WorkHoursRecord
     // ─────────────────────────────────────────────────────────────────────
 
     @Nested
@@ -138,8 +166,7 @@ class WorkHoursControllerTest {
 
         @Test
         void returns201OnSuccess() throws Exception {
-            Tcz01HosyuKousuu created = new Tcz01HosyuKousuu();
-            created.seqNo = 10L;
+            Tcz01HosyuKousuu created = createTestEntity(10L);
             when(workHoursService.create(any())).thenReturn(created);
 
             String body = """
@@ -154,7 +181,8 @@ class WorkHoursControllerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(body))
                     .andExpect(status().isCreated())
-                    .andExpect(jsonPath("$.seqNo").value(10));
+                    .andExpect(jsonPath("$.id").value(10))
+                    .andExpect(jsonPath("$.yearMonth").value("2025-02"));
         }
 
         @Test
@@ -171,7 +199,7 @@ class WorkHoursControllerTest {
     }
 
     // ─────────────────────────────────────────────────────────────────────
-    // PATCH /api/work-hours/{id}
+    // PATCH /api/work-hours/{id} → WorkHoursRecord
     // ─────────────────────────────────────────────────────────────────────
 
     @Nested
@@ -179,8 +207,8 @@ class WorkHoursControllerTest {
 
         @Test
         void updatesFieldAndReturns200() throws Exception {
-            Tcz01HosyuKousuu updated = new Tcz01HosyuKousuu();
-            updated.seqNo = 5L;
+            Tcz01HosyuKousuu updated = createTestEntity(5L);
+            updated.kenmei = "テスト件名";
             when(workHoursService.updateField(eq(5L), eq("00"), eq("subject"),
                     eq("テスト件名"), any(LocalDateTime.class)))
                     .thenReturn(updated);
@@ -194,7 +222,8 @@ class WorkHoursControllerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(body))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.seqNo").value(5));
+                    .andExpect(jsonPath("$.id").value(5))
+                    .andExpect(jsonPath("$.subject").value("テスト件名"));
         }
 
         @Test
@@ -228,7 +257,7 @@ class WorkHoursControllerTest {
     }
 
     // ─────────────────────────────────────────────────────────────────────
-    // POST /api/work-hours/copy
+    // POST /api/work-hours/copy → List<WorkHoursRecord>
     // ─────────────────────────────────────────────────────────────────────
 
     @Nested
@@ -236,8 +265,7 @@ class WorkHoursControllerTest {
 
         @Test
         void returnsCopiedRecords() throws Exception {
-            Tcz01HosyuKousuu copy = new Tcz01HosyuKousuu();
-            copy.seqNo = 20L;
+            Tcz01HosyuKousuu copy = createTestEntity(20L);
             when(workHoursService.copy(List.of(1L, 2L), "00"))
                     .thenReturn(List.of(copy));
 
@@ -249,7 +277,7 @@ class WorkHoursControllerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(body))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$[0].seqNo").value(20));
+                    .andExpect(jsonPath("$[0].id").value(20));
         }
 
         @Test
@@ -266,7 +294,7 @@ class WorkHoursControllerTest {
     }
 
     // ─────────────────────────────────────────────────────────────────────
-    // POST /api/work-hours/transfer
+    // POST /api/work-hours/transfer → List<WorkHoursRecord>
     // ─────────────────────────────────────────────────────────────────────
 
     @Nested
@@ -274,8 +302,7 @@ class WorkHoursControllerTest {
 
         @Test
         void returnsTransferredRecords() throws Exception {
-            Tcz01HosyuKousuu transferred = new Tcz01HosyuKousuu();
-            transferred.seqNo = 30L;
+            Tcz01HosyuKousuu transferred = createTestEntity(30L);
             when(workHoursService.transferNextMonth(
                     eq(List.of(1L)), eq("00"), eq(List.of("2025-03"))))
                     .thenReturn(List.of(transferred));
@@ -288,7 +315,7 @@ class WorkHoursControllerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(body))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$[0].seqNo").value(30));
+                    .andExpect(jsonPath("$[0].id").value(30));
         }
     }
 

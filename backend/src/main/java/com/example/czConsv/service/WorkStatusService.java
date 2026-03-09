@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -107,7 +108,7 @@ public class WorkStatusService {
         // 時間を分数に変換して更新
         int minutes = validationService.parseHoursToMinutes(hours);
         record.kousuu = new BigDecimal(minutes);
-        record.upddate = LocalDateTime.now();
+        record.upddate = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         workHoursDao.update(record);
 
         return record;
@@ -153,7 +154,7 @@ public class WorkStatusService {
 
             // ステータス更新
             record.status = "2";
-            record.upddate = LocalDateTime.now();
+            record.upddate = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
             workHoursDao.update(record);
             count++;
         }
@@ -189,7 +190,7 @@ public class WorkStatusService {
 
             // ステータス更新
             record.status = "1";
-            record.upddate = LocalDateTime.now();
+            record.upddate = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
             workHoursDao.update(record);
             count++;
         }

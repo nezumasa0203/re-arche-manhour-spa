@@ -1,4 +1,5 @@
 export default defineNuxtConfig({
+  ssr: false,
   devtools: { enabled: true },
 
   typescript: {
@@ -17,7 +18,7 @@ export default defineNuxtConfig({
   nitro: {
     devProxy: {
       '/api': {
-        target: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8080',
+        target: (process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8080') + '/api',
         changeOrigin: true,
       },
     },

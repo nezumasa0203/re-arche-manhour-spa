@@ -6,7 +6,12 @@ import com.example.czConsv.dto.request.WorkHoursCreateRequest;
 import com.example.czConsv.dto.request.WorkHoursCopyRequest;
 import com.example.czConsv.dto.request.WorkHoursTransferRequest;
 import com.example.czConsv.dto.request.WorkHoursUpdateRequest;
+import com.example.czConsv.dto.response.WorkHoursListResponse;
+import com.example.czConsv.dto.response.WorkHoursListResponse.WorkHoursRecord;
+import com.example.czConsv.dto.response.WorkHoursMapper;
 import com.example.czConsv.entity.Tcz01HosyuKousuu;
+import com.example.czConsv.security.CzSecurityContext;
+import com.example.czConsv.security.model.CzPrincipal;
 import com.example.czConsv.service.ExcelExportService;
 import com.example.czConsv.service.WorkHoursService;
 import com.example.czConsv.util.ControllerSupport;
@@ -55,25 +60,28 @@ public class WorkHoursController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Tcz01HosyuKousuu>> list(
+    public ResponseEntity<WorkHoursListResponse> list(
             @RequestParam String staffId,
             @RequestParam String yearMonth) {
-        return ResponseEntity.ok(workHoursService.fetchByMonth(staffId, yearMonth));
+        CzPrincipal principal = CzSecurityContext.require();
+        List<Tcz01HosyuKousuu> entities = workHoursService.fetchByMonth(staffId, yearMonth);
+        return ResponseEntity.ok(WorkHoursMapper.toListResponse(entities, yearMonth, principal));
     }
 
     @PostMapping
-    public ResponseEntity<Tcz01HosyuKousuu> create(
+    public ResponseEntity<WorkHoursRecord> create(
             @Valid @RequestBody WorkHoursCreateRequest request) {
-        return ResponseEntity.status(201).body(workHoursService.create(request));
+        Tcz01HosyuKousuu created = workHoursService.create(request);
+        return ResponseEntity.status(201).body(WorkHoursMapper.toRecord(created));
     }
 
     @PatchMapping("/{id}")
-    public ResponseEntity<Tcz01HosyuKousuu> update(
+    public ResponseEntity<WorkHoursRecord> update(
             @PathVariable Long id,
             @Valid @RequestBody WorkHoursUpdateRequest request) {
         Tcz01HosyuKousuu updated = workHoursService.updateField(
                 id, ControllerSupport.resolveSkbtcd(), request.field(), request.value(), request.updatedAt());
-        return ResponseEntity.ok(updated);
+        return ResponseEntity.ok(WorkHoursMapper.toRecord(updated));
     }
 
     @DeleteMapping("/{id}")
@@ -83,16 +91,18 @@ public class WorkHoursController {
     }
 
     @PostMapping("/copy")
-    public ResponseEntity<List<Tcz01HosyuKousuu>> copy(
+    public ResponseEntity<List<WorkHoursRecord>> copy(
             @Valid @RequestBody WorkHoursCopyRequest request) {
-        return ResponseEntity.ok(workHoursService.copy(request.ids(), ControllerSupport.resolveSkbtcd()));
+        List<Tcz01HosyuKousuu> copied = workHoursService.copy(request.ids(), ControllerSupport.resolveSkbtcd());
+        return ResponseEntity.ok(copied.stream().map(WorkHoursMapper::toRecord).toList());
     }
 
     @PostMapping("/transfer")
-    public ResponseEntity<List<Tcz01HosyuKousuu>> transfer(
+    public ResponseEntity<List<WorkHoursRecord>> transfer(
             @Valid @RequestBody WorkHoursTransferRequest request) {
-        return ResponseEntity.ok(
-                workHoursService.transferNextMonth(request.ids(), ControllerSupport.resolveSkbtcd(), request.targetMonths()));
+        List<Tcz01HosyuKousuu> transferred = workHoursService.transferNextMonth(
+                request.ids(), ControllerSupport.resolveSkbtcd(), request.targetMonths());
+        return ResponseEntity.ok(transferred.stream().map(WorkHoursMapper::toRecord).toList());
     }
 
     @PostMapping("/batch-confirm")

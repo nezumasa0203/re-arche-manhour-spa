@@ -14,6 +14,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -121,7 +122,7 @@ public class WorkHoursService {
         entity.status = STATUS_DRAFT;
         entity.delflg = "0";
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         entity.initnt = principal.userId();
         entity.inidate = now;
         entity.updtnt = principal.userId();
@@ -156,8 +157,12 @@ public class WorkHoursService {
                 .orElseThrow(() -> new CzBusinessException(
                         "CZ-104", "対象レコードが見つかりません"));
 
-        // 楽観ロックチェック
-        if (!entity.upddate.equals(expectedUpdatedAt)) {
+        // 楽観ロックチェック（秒精度で比較）
+        LocalDateTime dbTime = entity.upddate != null
+                ? entity.upddate.truncatedTo(ChronoUnit.SECONDS) : null;
+        LocalDateTime expectedTime = expectedUpdatedAt != null
+                ? expectedUpdatedAt.truncatedTo(ChronoUnit.SECONDS) : null;
+        if (dbTime == null || !dbTime.equals(expectedTime)) {
             throw new OptimisticLockException();
         }
 
@@ -178,7 +183,7 @@ public class WorkHoursService {
 
         CzPrincipal principal = CzSecurityContext.require();
         entity.updtnt = principal.userId();
-        entity.upddate = LocalDateTime.now();
+        entity.upddate = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         entity.updpgid = UPDPGID;
 
         workHoursDao.update(entity);
@@ -337,7 +342,7 @@ public class WorkHoursService {
         for (Tcz01HosyuKousuu record : drafts) {
             record.status = STATUS_CONFIRMED;
             record.updtnt = principal.userId();
-            record.upddate = LocalDateTime.now();
+            record.upddate = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
             record.updpgid = UPDPGID;
             workHoursDao.update(record);
             count++;
@@ -377,7 +382,7 @@ public class WorkHoursService {
         for (Tcz01HosyuKousuu record : confirmed) {
             record.status = STATUS_DRAFT;
             record.updtnt = principal.userId();
-            record.upddate = LocalDateTime.now();
+            record.upddate = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
             record.updpgid = UPDPGID;
             workHoursDao.update(record);
             count++;
@@ -466,7 +471,7 @@ public class WorkHoursService {
         copy.kousuu = source.kousuu;
         copy.delflg = "0";
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         copy.initnt = principal.userId();
         copy.inidate = now;
         copy.updtnt = principal.userId();

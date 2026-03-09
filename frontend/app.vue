@@ -1,5 +1,6 @@
 <template>
   <NuxtPage />
+  <ConfirmDialog />
   <DevActorSwitcher v-if="showActorSwitch" />
 </template>
 

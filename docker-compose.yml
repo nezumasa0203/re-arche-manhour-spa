@@ -129,7 +129,7 @@ services:
     container_name: cz-migration-auth-mock
     environment:
       PORT: 8180
-      JWT_SECRET: ${JWT_SECRET:-dev-mock-secret}
+      JWT_SECRET: ${JWT_SECRET:-dev-mock-secret-key-that-is-at-least-256-bits-long}
       JWT_ISSUER: ${JWT_ISSUER:-https://mock-okta.example.com}
     ports:
       - "${AUTH_MOCK_PORT:-8180}:8180"

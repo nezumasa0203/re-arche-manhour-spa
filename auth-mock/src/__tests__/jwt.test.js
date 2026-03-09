@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import jwt from 'jsonwebtoken'
 import { ACTORS, buildJwtPayload, parseBits } from '../index.js'
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-mock-secret'
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-mock-secret-key-that-is-at-least-256-bits-long'
 const JWT_ISSUER = process.env.JWT_ISSUER || 'https://mock-okta.example.com'
 
 // ============================================

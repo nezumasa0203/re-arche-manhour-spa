@@ -296,7 +296,7 @@ CREATE TABLE tcz01_hosyu_kousuu (
     skbtcd              VARCHAR(2)      NOT NULL DEFAULT '01',
     hssgytnt_esqid      VARCHAR(6)      NOT NULL,
     hssgytnt_name       VARCHAR(40),
-    year_half           VARCHAR(5)      NOT NULL,
+    year_half           VARCHAR(7)      NOT NULL,
     sgyymd              DATE            NOT NULL,
     sys_kbn             VARCHAR(1),
     cause_sys_kbn       VARCHAR(1),

@@ -12,7 +12,7 @@ spring:
 # --- JWT / Auth ---
 app:
   jwt:
-    secret: ${JWT_SECRET:dev-mock-secret}
+    secret: ${JWT_SECRET:dev-mock-secret-key-that-is-at-least-256-bits-long}
 
 # --- Doma 2 ---
 doma:
@@ -46,7 +46,9 @@ app:
   cors:
     allowed-origins: http://localhost:3000
   jwt:
-    secret: ${JWT_SECRET:dev-mock-secret}
+    secret: ${JWT_SECRET:dev-mock-secret-key-that-is-at-least-256-bits-long}
+  service-time:
+    enabled: false
 
 ---
 # Test プロファイル

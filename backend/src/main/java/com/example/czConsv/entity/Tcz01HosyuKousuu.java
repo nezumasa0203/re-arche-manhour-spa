@@ -8,6 +8,7 @@ import org.seasar.doma.Entity;
 import org.seasar.doma.GeneratedValue;
 import org.seasar.doma.GenerationType;
 import org.seasar.doma.Id;
+import org.seasar.doma.SequenceGenerator;
 import org.seasar.doma.Table;
 
 /** T1: 保守工数（メインテーブル） */
@@ -16,7 +17,8 @@ import org.seasar.doma.Table;
 public class Tcz01HosyuKousuu {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE)
+    @SequenceGenerator(sequence = "tcz01_hosyu_kousuu_seqno_seq")
     @Column(name = "seqno")
     public Long seqNo;
 
