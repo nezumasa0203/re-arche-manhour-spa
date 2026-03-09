@@ -42,6 +42,9 @@ dependencies {
     implementation 'org.seasar.doma.boot:doma-spring-boot-starter:1.8.0'
     annotationProcessor 'org.seasar.doma:doma-processor:2.55.0'
 
+    // Apache POI (Excel .xlsx 出力)
+    implementation 'org.apache.poi:poi-ooxml:5.3.0'
+
     // Test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
@@ -61,6 +64,8 @@ compileJava {
 
 tasks.named('test') {
     useJUnitPlatform()
+    environment 'DOCKER_API_VERSION', '1.44'
+    systemProperty 'api.version', '1.44'
 }
 
 checkstyle {

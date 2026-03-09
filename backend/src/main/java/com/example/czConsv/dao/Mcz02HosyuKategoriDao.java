@@ -18,6 +18,9 @@ public interface Mcz02HosyuKategoriDao {
     Optional<Mcz02HosyuKategori> selectById(String hsKategori, LocalDate yukouKaishiki, LocalDate yukouSyuryoki);
 
     @Select
+    List<Mcz02HosyuKategori> selectByNendo(String nendo);
+
+    @Select
     List<Mcz02HosyuKategori> selectAll();
 
     @Insert

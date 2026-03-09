@@ -17,6 +17,9 @@ public interface Mcz04CtrlDao {
     Optional<Mcz04Ctrl> selectById(String sysid, String yyyymm);
 
     @Select
+    Optional<Mcz04Ctrl> selectForUpdate(String sysid, String yyyymm);
+
+    @Select
     List<Mcz04Ctrl> selectAll();
 
     @Insert

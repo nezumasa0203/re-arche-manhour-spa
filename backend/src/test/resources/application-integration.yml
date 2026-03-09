@@ -1,0 +1,15 @@
+# Testcontainers 統合テスト用プロファイル
+# DataSource は @DynamicPropertySource で上書きされる
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/test
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+
+doma:
+  dialect: postgres
+
+app:
+  jwt:
+    secret: test-secret-key-for-integration-testing-32bytes

@@ -22,6 +22,12 @@ public interface Tcz13SubsysSumDao {
     @Select
     List<Tcz13SubsysSum> selectAll();
 
+    @Select
+    List<Tcz13SubsysSum> selectByNendoHalf(String nendoHalf);
+
+    @Select
+    List<Tcz13SubsysSum> selectByYyyymmRangeAndSkbtcd(java.util.List<String> yyyymmList, String skbtcd);
+
     @Insert
     int insert(Tcz13SubsysSum entity);
 

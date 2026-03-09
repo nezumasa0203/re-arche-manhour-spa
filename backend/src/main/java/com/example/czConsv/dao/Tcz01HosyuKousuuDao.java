@@ -24,6 +24,12 @@ public interface Tcz01HosyuKousuuDao {
             String hssgytntEsqid, String yearHalf, String status);
 
     @Select
+    List<Tcz01HosyuKousuu> selectBySkbtcdAndYearHalf(String skbtcd, String yearHalf);
+
+    @Select
+    List<Tcz01HosyuKousuu> selectBySkbtcdYearHalfAndStatus(String skbtcd, String yearHalf, String status);
+
+    @Select
     List<Tcz01HosyuKousuu> selectAll();
 
     @Insert

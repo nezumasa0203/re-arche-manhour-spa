@@ -20,6 +20,9 @@ public interface Tcz16TntBusyoRirekiDao {
     @Select
     List<Tcz16TntBusyoRireki> selectAll();
 
+    @Select
+    List<Tcz16TntBusyoRireki> selectBySkbtcd(String skbtcd);
+
     @Insert
     int insert(Tcz16TntBusyoRireki entity);
 

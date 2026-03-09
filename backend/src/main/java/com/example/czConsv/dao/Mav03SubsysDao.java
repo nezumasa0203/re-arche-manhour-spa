@@ -19,6 +19,9 @@ public interface Mav03SubsysDao {
     @Select
     List<Mav03Subsys> selectAll();
 
+    @Select
+    List<Mav03Subsys> selectByKeyword(String keyword);
+
     @Insert
     int insert(Mav03Subsys entity);
 

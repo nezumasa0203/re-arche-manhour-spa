@@ -1,16 +1,22 @@
 {
+  "mcpServers": {
+    "serena": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/oraios/serena",
+        "serena-mcp-server",
+        "--project",
+        "/workspaces/re-arche-manhour-spa"
+      ]
+    }
+  },
   "permissions": {
     "allow": [
-      "Read(//d/PROJECT02/migration_source/migration_soource_irpmng_czConsv/**)",
-      "Read(//c/Users/li1778/.claude/plugins/marketplaces/claude-plugins-official/external_plugins/serena/**)",
-      "Read(//c/Users/li1778/.claude/plugins/marketplaces/claude-plugins-official/external_plugins/serena/.claude-plugin/**)",
       "Bash(docker compose exec db pg_isready -U postgres -d cz_migration_dev)",
-      "Bash(docker compose exec db psql -U postgres -d cz_migration_dev -c \"SELECT tablename, indexname FROM pg_indexes WHERE schemaname = ''public'' AND indexname NOT LIKE ''pk_%'' ORDER BY tablename, indexname;\")",
-      "Bash(docker compose exec db psql -U postgres -d cz_migration_dev -c \"SELECT count\\(*\\) as ctrl_count FROM mcz04_ctrl; SELECT count\\(*\\) as kousuu_count FROM tcz01_hosyu_kousuu; SELECT count\\(*\\) as orgn_count FROM mcz12_orgn_kr; SELECT count\\(*\\) as kategori_count FROM mcz02_hosyu_kategori;\")",
-      "Bash(docker compose exec -T backend sh -c \"cat build/reports/tests/test/index.html 2>/dev/null | head -100\")",
-      "Bash(docker compose exec -T workspace sh -c \"cd /workspace/01_project/backend && gradle test --no-daemon --tests ''com.example.czConsv.service.WorkStatusServiceTest'' 2>&1\")",
-      "Bash(docker compose exec -T workspace sh -c \"cd /workspace/01_project/backend && gradle test --tests ''com.example.czConsv.service.WorkHoursServiceTest'' --no-daemon 2>&1\")",
-      "Bash(docker compose exec -T workspace sh -c \"cd /workspace/01_project/backend && gradle test --tests ''com.example.czConsv.service.MonthlyControlServiceTest'' --tests ''com.example.czConsv.service.ValidationServiceTest'' --tests ''com.example.czConsv.service.FiscalYearResolverTest'' -x compileTestJava --no-daemon 2>&1\")"
+      "Bash(docker compose exec db psql -U postgres -d cz_migration_dev -c *)",
+      "Bash(docker compose exec -T backend sh -c *)",
+      "Bash(docker compose exec -T workspace sh -c *)"
     ]
   }
 }
