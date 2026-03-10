@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { loginAs, ACTOR_STAFF } from './helpers/auth'
+import { loginAs, cleanupTestRecords, ACTOR_STAFF } from './helpers/auth'
 import { WorkHoursPage } from './pages/WorkHoursPage'
 
 /**
@@ -10,6 +10,10 @@ import { WorkHoursPage } from './pages/WorkHoursPage'
 let workHours: WorkHoursPage
 
 test.beforeEach(async ({ page }) => {
+  // テスト間のデータ干渉を防ぐため、当月の下書きレコードを全削除
+  const now = new Date()
+  const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  await cleanupTestRecords(ACTOR_STAFF, ym)
   await loginAs(page, ACTOR_STAFF)
   workHours = new WorkHoursPage(page)
 })
@@ -62,35 +66,51 @@ test.describe('基本フロー', () => {
   test('一括確認で STATUS_0 → STATUS_1 に遷移', async () => {
     await workHours.goto()
 
-    // 新規行追加＋必須項目入力
+    // 新規行追加＋全必須項目入力
+    // batchConfirm は workDate, targetSubsystemNo, causeSubsystemNo, categoryCode, subject, hours を要求
     await workHours.addRecord()
     await workHours.editCell(0, 'subject', '一括確認テスト')
     await workHours.editCell(0, 'hours', '100')
 
-    // 作業日を入力（PrimeVue Calendar は Playwright fill() で v-model 更新されないため、
-    // ブラウザ内の Pinia store 経由で updateField を直接呼び出す）
+    // PrimeVue Calendar/Dropdown は Playwright fill() で v-model 更新されないため、
+    // Pinia store 経由で残りの必須項目を設定
     const today = new Date()
     const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`
-    const datePatchPromise = workHours.page.waitForResponse(
-      resp => resp.url().includes('/work-hours/') && resp.request().method() === 'PATCH',
-    )
-    await workHours.page.evaluate(async (d: string) => {
-      // Vue app → $pinia → workHours ストアにアクセス
-      const el = document.querySelector('#__nuxt') as HTMLElement & { __vue_app__: { config: { globalProperties: { $pinia: { _s: Map<string, Record<string, unknown>> } } } } }
-      const pinia = el.__vue_app__.config.globalProperties.$pinia
-      const store = pinia._s.get('workHours') as { records: Array<{ id: number }>; updateField: (id: number, field: string, value: string) => Promise<void> }
-      const record = store.records[0]
-      if (record) await store.updateField(record.id, 'workDate', d)
-    }, dateStr)
-    await datePatchPromise
-    await workHours.page.waitForTimeout(300)
+    const fields = [
+      { field: 'workDate', value: dateStr },
+      { field: 'targetSubsystemNo', value: '0001' },
+      { field: 'causeSubsystemNo', value: '0001' },
+      { field: 'categoryCode', value: '01' },
+    ]
+    for (const { field, value } of fields) {
+      await workHours.page.evaluate(async ({ f, v }) => {
+        const el = document.querySelector('#__nuxt') as HTMLElement & { __vue_app__: { config: { globalProperties: { $pinia: { _s: Map<string, Record<string, unknown>> } } } } }
+        const pinia = el.__vue_app__.config.globalProperties.$pinia
+        const store = pinia._s.get('workHours') as { records: Array<{ id: number }>; updateField: (id: number, field: string, value: string) => Promise<void> }
+        const record = store.records[0]
+        if (record) await store.updateField(record.id, f, v)
+      }, { f: field, v: value })
+      await workHours.page.waitForTimeout(200)
+    }
 
     // 一括確認
     await workHours.batchConfirmBtn.click()
-    await workHours.confirmDialogAccept()
 
-    // batchConfirm → fetchRecords の完了を待機
-    await workHours.page.waitForTimeout(2000)
+    // batch-confirm POST + 続く fetchRecords GET の両方を同時に待機セットアップ
+    const batchPromise = workHours.page.waitForResponse(
+      resp => resp.url().includes('/batch-confirm') && resp.request().method() === 'POST',
+    )
+    const fetchPromise = workHours.page.waitForResponse(
+      resp => resp.url().includes('/work-hours') && !resp.url().includes('batch') && resp.request().method() === 'GET',
+      { timeout: 15000 },
+    )
+    await workHours.confirmDialogAccept()
+    await batchPromise
+    const fetchResp = await fetchPromise
+    const fetchBody = await fetchResp.json()
+    console.log('fetchRecords status:', fetchResp.status(), 'records:', JSON.stringify((fetchBody as { records: unknown[] }).records?.length))
+    console.log('fetchRecords URL:', fetchResp.url())
+    await workHours.page.waitForTimeout(500)
 
     // STATUS_1 の件数が増加していることを確認
     const count1Text = await workHours.countStatus1.textContent()

@@ -1,22 +1,14 @@
 {
-  "mcpServers": {
-    "serena": {
-      "command": "uvx",
-      "args": [
-        "--from",
-        "git+https://github.com/oraios/serena",
-        "serena-mcp-server",
-        "--project",
-        "/workspaces/re-arche-manhour-spa"
-      ]
-    }
-  },
   "permissions": {
     "allow": [
       "Bash(docker compose exec db pg_isready -U postgres -d cz_migration_dev)",
       "Bash(docker compose exec db psql -U postgres -d cz_migration_dev -c *)",
       "Bash(docker compose exec -T backend sh -c *)",
-      "Bash(docker compose exec -T workspace sh -c *)"
+      "Bash(docker compose exec -T workspace sh -c *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8080/actuator/health)",
+      "Bash(docker compose ps --format \"table {{.Name}}\\\\t{{.Status}}\")",
+      "Bash(docker compose logs backend --tail=50)",
+      "Bash(docker compose exec db psql -U czuser -d czdb -c \"\\\\d tcz01_hosyu_kousuu\")"
     ]
   }
 }
